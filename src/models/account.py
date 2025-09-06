@@ -58,7 +58,13 @@ class Account:
         self.balance -= amount
         return True, f"Withdrawal successful.\nNew Balance: {self.balance}"
     
-
+    def search(self, term):
+        term = str(term).lower()
+        return (term in str(self.account_number).lower() or
+                term in self.name.lower() or
+                term in self.account_type.lower() or
+                term in self.status.lower())
+    
     def to_dict(self):
         return {
             "account_number": self.account_number,
