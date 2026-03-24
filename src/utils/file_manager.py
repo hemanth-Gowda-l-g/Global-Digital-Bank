@@ -48,3 +48,17 @@ def log_transaction(account_number, operation, amount, balance_after):
     with open(TRANSACTIONS_FILE, "a") as f:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         f.write(f"{timestamp} | {account_number} | {operation} | {amount} | {balance_after}\n")
+
+
+def get_transaction_history(account_number):
+    """Return all log entries for the given account_number as a list of strings."""
+    history = []
+    try:
+        with open(TRANSACTIONS_FILE, "r") as f:
+            for line in f:
+                parts = line.strip().split(" | ")
+                if len(parts) >= 2 and parts[1] == str(account_number):
+                    history.append(line.strip())
+    except FileNotFoundError:
+        pass
+    return history

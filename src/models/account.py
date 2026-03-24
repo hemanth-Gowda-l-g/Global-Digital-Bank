@@ -17,7 +17,7 @@ class Account:
         self.account_type = account_type.title()
         if self.account_type not in Account.MIN_BALANCE:
             raise ValueError(f"Invalid account type: {self.account_type}")
-        self.balance = balance
+        self.balance = float(balance)
         self.status = status
         self.pin = pin
 
@@ -58,6 +58,45 @@ class Account:
         self.balance -= amount
         return True, f"Withdrawal successful.\nNew Balance: {self.balance}"
     
+    def transfer_out(self, amount):
+        """Debit this account as part of a transfer; mirrors withdraw logic."""
+        try:
+            amount = float(amount)
+        except (TypeError, ValueError):
+            return False, "Invalid Amount"
+
+        if self.status != "Active":
+            return False, "Source account is inactive"
+        if amount <= 0:
+            return False, "Transfer amount must be positive"
+
+        min_required = Account.MIN_BALANCE[self.account_type]
+        if self.balance - amount < min_required:
+            return False, (
+                f"Insufficient funds. Minimum required balance for "
+                f"{self.account_type}: {min_required}"
+            )
+
+        self.balance -= amount
+        return True, f"Transfer out successful.\nNew Balance: {self.balance}"
+
+    def transfer_in(self, amount):
+        """Credit this account as part of a transfer."""
+        try:
+            amount = float(amount)
+        except (TypeError, ValueError):
+            return False, "Invalid Amount"
+
+        if self.status != "Active":
+            return False, "Destination account is inactive"
+        if amount <= 0:
+            return False, "Transfer amount must be positive"
+        if amount > Account.MAX_SINGLE_DEPOSIT:
+            return False, f"Transfer exceeds single-deposit limit {Account.MAX_SINGLE_DEPOSIT}"
+
+        self.balance += amount
+        return True, f"Transfer in successful.\nNew Balance: {self.balance}"
+
     def search(self, term):
         term = str(term).lower()
         return (term in str(self.account_number).lower() or

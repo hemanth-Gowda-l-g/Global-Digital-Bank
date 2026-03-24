@@ -10,8 +10,11 @@ def main():
         print("2) Deposit")
         print("3) Withdraw")
         print("4) Balance Inquiry")
-        print("5) Close Account")
-        print("6) Exit")
+        print("5) Transfer")
+        print("6) Transaction History")
+        print("7) List / Search Accounts")
+        print("8) Close Account")
+        print("9) Exit")
 
         choice = input("Enter Choice: ")
 
@@ -43,11 +46,37 @@ def main():
             print(acc if acc else msg)
 
         elif choice == "5":
+            from_no = input("Enter source account number: ")
+            to_no = input("Enter destination account number: ")
+            amount = input("Enter amount to transfer: ")
+            ok, msg = bank.transfer(from_no, to_no, amount)
+            print(msg)
+
+        elif choice == "6":
+            acc_no = input("Enter Account Number: ")
+            history, msg = bank.get_transaction_history(acc_no)
+            print(msg)
+            for entry in history:
+                print(" ", entry)
+
+        elif choice == "7":
+            term = input("Enter search term (or press Enter to list all): ").strip()
+            if term:
+                results = bank.search_accounts(term)
+            else:
+                results = bank.list_accounts()
+            if results:
+                for acc in results:
+                    print(" ", acc)
+            else:
+                print("No accounts found.")
+
+        elif choice == "8":
             acc_no = input("Enter account number to close: ")
             ok, msg = bank.close_account(acc_no)
             print(msg)
 
-        elif choice == "6":
+        elif choice == "9":
             print("Thank you for visiting GlobalDigital Bank")
             break
 
