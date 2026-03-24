@@ -17,9 +17,9 @@ class Account:
         self.account_type = account_type.title()
         if self.account_type not in Account.MIN_BALANCE:
             raise ValueError(f"Invalid account type: {self.account_type}")
-        self.balance = balance
+        self.balance = float(balance)
         self.status = status
-        self.pin = pin
+        self.pin = pin if pin else None
 
     def deposit(self, amount):
         try:
@@ -58,6 +58,27 @@ class Account:
         self.balance -= amount
         return True, f"Withdrawal successful.\nNew Balance: {self.balance}"
     
+    def set_pin(self, pin):
+        pin = str(pin).strip()
+        if not pin.isdigit() or len(pin) != 4:
+            return False, "PIN must be exactly 4 digits"
+        self.pin = pin
+        return True, "PIN set successfully"
+
+    def change_pin(self, old_pin, new_pin):
+        if self.pin is None:
+            return False, "No PIN is set for this account"
+        if str(old_pin).strip() != self.pin:
+            return False, "Incorrect current PIN"
+        return self.set_pin(new_pin)
+
+    def verify_pin(self, pin):
+        if self.pin is None:
+            return False, "No PIN set for this account"
+        if str(pin).strip() != self.pin:
+            return False, "Incorrect PIN"
+        return True, "PIN verified"
+
     def search(self, term):
         term = str(term).lower()
         return (term in str(self.account_number).lower() or

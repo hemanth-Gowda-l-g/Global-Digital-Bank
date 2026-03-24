@@ -1,9 +1,11 @@
 import csv
+import os
 from models.account import Account
 from datetime import datetime
 
-ACCOUNT_FILE = "../data/accounts.csv"
-TRANSACTIONS_FILE = "../data/transactions.log"
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ACCOUNT_FILE = os.path.join(_BASE_DIR, "data", "accounts.csv")
+TRANSACTIONS_FILE = os.path.join(_BASE_DIR, "data", "transactions.log")
 
 def save_accounts(accounts):
     with open(ACCOUNT_FILE, "w", newline="") as f:
@@ -48,3 +50,22 @@ def log_transaction(account_number, operation, amount, balance_after):
     with open(TRANSACTIONS_FILE, "a") as f:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         f.write(f"{timestamp} | {account_number} | {operation} | {amount} | {balance_after}\n")
+
+
+def view_transactions(account_number=None):
+    transactions = []
+    try:
+        with open(TRANSACTIONS_FILE, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                if account_number is None:
+                    transactions.append(line)
+                else:
+                    parts = line.split(" | ")
+                    if len(parts) >= 2 and parts[1].strip() == str(account_number):
+                        transactions.append(line)
+    except FileNotFoundError:
+        pass
+    return transactions

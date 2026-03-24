@@ -2,7 +2,7 @@
 # It acts as the middle layer between  the Account model (business rules)
 # and file_manager utilities (storage and logging).
 from models.account import Account
-from utils.file_manager import load_accounts, save_accounts, log_transaction
+from utils.file_manager import load_accounts, save_accounts, log_transaction, view_transactions
 
 class BankingService:
     START_ACCOUNT_NO = 1001
@@ -23,12 +23,17 @@ class BankingService:
         save_accounts(self.accounts)
  
  
-    def create_account(self, name,age, account_type, intial_deposit=0):
+    def create_account(self, name, age, account_type, intial_deposit=0, pin=None):
         # ---- Basic Validation Checks ----
         if not name.strip():
             return None, "Name cannot be empty"
-       
-        if int(age) < 18:
+
+        try:
+            age = int(age)
+        except (TypeError, ValueError):
+            return None, "Invalid age. Please enter a whole number"
+
+        if age < 18:
             return None, "Age must be 18 or above"
        
  
@@ -43,12 +48,14 @@ class BankingService:
             return None, f"Intial deposit must be at least {min_req}"
        
         acc_no = self.next_account_number
-        acc = Account(acc_no, name,age, account_type, balance=float(intial_deposit))
+        acc = Account(acc_no, name, age, account_type, balance=float(intial_deposit))
         self.accounts[acc_no] = acc
         # 1001, 10002, 1003
         self.next_account_number += 1
- 
- 
+
+        if pin is not None:
+            acc.set_pin(pin)
+
         log_transaction(acc_no, "CREATE", intial_deposit, acc.balance)
         self.save_to_disk()
         return acc, "Account created succesfully"
@@ -71,18 +78,56 @@ class BankingService:
             self.save_to_disk()
         return ok, msg
    
-    def withdraw(self, account_number, amount):
+    def withdraw(self, account_number, amount, pin=None):
         acc = self.get_account(account_number)
         if not acc:
             return False, "Account not Found"
         if acc.status != "Active":
-            return False , "Account is not Active"
-       
+            return False, "Account is not Active"
+
+        if acc.pin is not None:
+            if pin is None:
+                return False, "PIN required for withdrawal"
+            ok, msg = acc.verify_pin(pin)
+            if not ok:
+                return False, msg
+
         ok, msg = acc.withdraw(amount)
         if ok:
             log_transaction(acc.account_number, "WITHDRAW", amount, acc.balance)
             self.save_to_disk()
         return ok, msg
+
+    def set_pin(self, account_number, pin):
+        acc = self.get_account(account_number)
+        if not acc:
+            return False, "Account not Found"
+        if acc.status != "Active":
+            return False, "Account is not Active"
+        ok, msg = acc.set_pin(pin)
+        if ok:
+            self.save_to_disk()
+        return ok, msg
+
+    def change_pin(self, account_number, old_pin, new_pin):
+        acc = self.get_account(account_number)
+        if not acc:
+            return False, "Account not Found"
+        if acc.status != "Active":
+            return False, "Account is not Active"
+        ok, msg = acc.change_pin(old_pin, new_pin)
+        if ok:
+            self.save_to_disk()
+        return ok, msg
+
+    def search_accounts(self, term):
+        return [acc for acc in self.accounts.values() if acc.search(term)]
+
+    def list_accounts(self):
+        return list(self.accounts.values())
+
+    def get_transaction_history(self, account_number=None):
+        return view_transactions(account_number)
    
     def balance_inquiry(self, account_number):
         acc = self.get_account(account_number)
