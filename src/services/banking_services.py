@@ -2,7 +2,7 @@
 # It acts as the middle layer between  the Account model (business rules)
 # and file_manager utilities (storage and logging).
 from models.account import Account
-from utils.file_manager import load_accounts, save_accounts, log_transaction
+from utils.file_manager import load_accounts, save_accounts, log_transaction, get_transaction_history
 
 class BankingService:
     START_ACCOUNT_NO = 1001
@@ -23,14 +23,18 @@ class BankingService:
         save_accounts(self.accounts)
  
  
-    def create_account(self, name,age, account_type, intial_deposit=0):
+    def create_account(self, name, age, account_type, intial_deposit=0):
         # ---- Basic Validation Checks ----
         if not name.strip():
             return None, "Name cannot be empty"
-       
-        if int(age) < 18:
+
+        try:
+            age = int(age)
+        except (TypeError, ValueError):
+            return None, "Age must be a valid number"
+
+        if age < 18:
             return None, "Age must be 18 or above"
-       
  
         # Normalize account type (capitalize first letter)
         account_type = account_type.title()
@@ -96,6 +100,56 @@ class BankingService:
             return False, "Account not Found"
          
          acc.status = "Inactive"
-         log_transaction(acc.account_number, "CLOSE" , None, acc.balance)
+         log_transaction(acc.account_number, "CLOSE", None, acc.balance)
          self.save_to_disk()
          return True , "Account closed succesfully"
+
+    def transfer(self, from_account_number, to_account_number, amount):
+        from_acc = self.get_account(from_account_number)
+        to_acc = self.get_account(to_account_number)
+
+        if not from_acc:
+            return False, "Source account not Found"
+        if not to_acc:
+            return False, "Destination account not Found"
+        if from_acc.account_number == to_acc.account_number:
+            return False, "Cannot transfer to the same account"
+
+        try:
+            amount = float(amount)
+        except (TypeError, ValueError):
+            return False, "Invalid transfer amount"
+
+        ok_out, msg_out = from_acc.transfer_out(amount)
+        if not ok_out:
+            return False, msg_out
+
+        ok_in, msg_in = to_acc.transfer_in(amount)
+        if not ok_in:
+            # Roll back the debit
+            from_acc.balance += amount
+            return False, msg_in
+
+        log_transaction(from_acc.account_number, "TRANSFER_OUT", amount, from_acc.balance)
+        log_transaction(to_acc.account_number, "TRANSFER_IN", amount, to_acc.balance)
+        self.save_to_disk()
+        return True, (
+            f"Transfer successful.\n"
+            f"  {from_acc.account_number} new balance: {from_acc.balance:.2f}\n"
+            f"  {to_acc.account_number} new balance: {to_acc.balance:.2f}"
+        )
+
+    def get_transaction_history(self, account_number):
+        acc = self.get_account(account_number)
+        if not acc:
+            return None, "Account not Found"
+        history = get_transaction_history(acc.account_number)
+        if not history:
+            return [], f"No transactions found for account {acc.account_number}"
+        return history, f"{len(history)} transaction(s) found"
+
+    def list_accounts(self):
+        return list(self.accounts.values())
+
+    def search_accounts(self, term):
+        return [acc for acc in self.accounts.values() if acc.search(term)]
